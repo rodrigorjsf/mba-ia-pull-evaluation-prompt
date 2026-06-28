@@ -220,9 +220,11 @@ def create_experiment(version: str = "v2") -> int:
     username = os.getenv("USERNAME_LANGSMITH_HUB", "")
     prompt_template = pull_prompt(username, version)
 
-    # 3. Dataset existente: <project>-eval (15 exemplos).
+    # 3. Dataset existente (15 exemplos). Deriva `<project>-eval` por padrão, mas
+    # respeita um override explícito `EVAL_DATASET` — o nome do dataset é
+    # histórico e pode divergir de LANGSMITH_PROJECT se o projeto foi renomeado.
     project_name = os.getenv("LANGSMITH_PROJECT", "prompt-optimization-challenge-resolved")
-    dataset_name = f"{project_name}-eval"
+    dataset_name = os.getenv("EVAL_DATASET") or f"{project_name}-eval"
     print(f"\n   Dataset de avaliação: {dataset_name}")
 
     # 4. Alvo + avaliador combinado.
