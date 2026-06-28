@@ -2,7 +2,7 @@
 Script para fazer push de prompts otimizados ao LangSmith Prompt Hub.
 
 Este script:
-1. Lê os prompts otimizados de prompts/bug_to_user_story_v2.yml
+1. Lê os prompts de prompts/bug_to_user_story_{version}.yml (v0 ou v2)
 2. Valida os prompts
 3. Faz push PÚBLICO para o LangSmith Hub
 4. Adiciona metadados (tags, descrição, técnicas utilizadas)
@@ -21,8 +21,8 @@ from utils import load_yaml, check_env_vars, print_section_header, validate_prom
 load_dotenv()
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
-V2_PROMPT_FILE = PROMPTS_DIR / "bug_to_user_story_v2.yml"
 REQUIRED_ENV_VARS = ["LANGSMITH_API_KEY", "USERNAME_LANGSMITH_HUB"]
+ALLOWED_VERSIONS = {"v0", "v2"}
 
 
 def validate_prompt(prompt_data: dict) -> tuple[bool, list]:
@@ -88,16 +88,29 @@ def push_prompt_to_langsmith(prompt_name: str, prompt_data: dict) -> bool:
         return False
 
 
-def main():
-    """Função principal"""
+def main(version=None):
+    """Função principal.
+
+    Args:
+        version: Versão do prompt a fazer push ('v0' ou 'v2').
+                 Quando None, lê de sys.argv[1]; padrão 'v2' se sem argumento.
+    """
     print_section_header("Push de Prompt para o LangSmith Hub")
 
-    handle = os.getenv("USERNAME_LANGSMITH_HUB", "")
-    prompt_name = f"{handle}/bug_to_user_story_v2"
+    if version is None:
+        version = sys.argv[1] if len(sys.argv) > 1 else "v2"
 
-    prompt_data = load_yaml(str(V2_PROMPT_FILE))
+    if version not in ALLOWED_VERSIONS:
+        print(f"❌ Versão inválida: '{version}'. Versões permitidas: {sorted(ALLOWED_VERSIONS)}")
+        sys.exit(1)
+
+    handle = os.getenv("USERNAME_LANGSMITH_HUB", "")
+    prompt_name = f"{handle}/bug_to_user_story_{version}"
+    prompt_file = PROMPTS_DIR / f"bug_to_user_story_{version}.yml"
+
+    prompt_data = load_yaml(str(prompt_file))
     if prompt_data is None:
-        print(f"❌ Não foi possível carregar o prompt de {V2_PROMPT_FILE}")
+        print(f"❌ Não foi possível carregar o prompt de {prompt_file}")
         sys.exit(1)
 
     success = push_prompt_to_langsmith(prompt_name, prompt_data)

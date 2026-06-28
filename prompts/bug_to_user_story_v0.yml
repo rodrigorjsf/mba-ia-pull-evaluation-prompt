@@ -1,0 +1,15 @@
+description: "Prompt baseline v0 para converter relatos de bugs em user stories"
+
+system_prompt: |
+  Transforme o relato de bug abaixo em uma user story.
+
+user_prompt: "{bug_report}"
+
+version: "v0"
+techniques_applied:
+  - "Zero-shot Prompting"
+  - "Instrução Direta"
+tags:
+  - "bug-analysis"
+  - "user-story"
+created_at: "2026-06-28"
