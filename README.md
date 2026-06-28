@@ -225,36 +225,38 @@ não poluir a saída avaliada.
 A avaliação oficial do desafio (`src/evaluate.py`) mede **apenas o prompt otimizado v2**
 contra os 15 exemplos do dataset — é o único prompt que o SPEC pede para avaliar. O run
 abaixo é **real** (`gemini-3.1-flash-lite`, 15/15 exemplos, throttle de 14 RPM), puxando o
-v2 do Hub; a saída bruta está versionada em
-[`docs/evidence/v2_run.txt`](docs/evidence/v2_run.txt).
+v2 do Hub.
 
 ### Avaliação real do v2 (entregável)
 
+#### Pull prompt inicial
+
+`leonanluppi/bug_to_user_story_v1`:
+
+<p align="center">
+  <img src="docs/evidence/pull_prompt_evidence.png" alt="Prompt inicial" width="600px" />
+</p>
+
 `rodrigorjsf/bug_to_user_story_v2`:
 
-```
-==================================================
-Prompt: rodrigorjsf/bug_to_user_story_v2
-==================================================
+#### Push prompt otimizado
 
-Métricas Derivadas:
-- Helpfulness: 0.81 ✓
-- Correctness: 0.84 ✓
+<p align="center">
+  <img src="docs/evidence/push_prompt_evidence.png" alt="Prompt otimizado" width="600px" />
+</p>
 
-Métricas Base:
-- F1-Score: 0.88 ✓
-- Clarity: 0.81 ✓
-- Precision: 0.80 ✓
+#### Avaliação prompt otimizado
 
-📊 MÉDIA GERAL: 0.8277
-✅ STATUS: APROVADO - Todas as métricas >= 0.8
-```
+<p align="center">
+  <img src="docs/evidence/evaluation_prompt_evidence.png" alt="Prompt evaluation" width="600px" />
+</p>
 
 ### Evidências no LangSmith
 
-- **Projeto / dashboard:** <https://smith.langchain.com/projects/mba-project-evaluation-prompt>
-- **Prompt v2 público:** <https://smith.langchain.com/prompts/bug_to_user_story_v2>
-- **Dataset** `mba-project-evaluation-prompt-eval` com os 15 exemplos; tracing visível para todos.
+- **Prompt v2 público:** <https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2>
+- **Dataset** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) com os 15 exemplos; tracing visível para todos.
+
+#### Exemplos
 - _Screenshots do dashboard com as notas ≥ 0.8 e os traces de ≥ 3 exemplos: a anexar
   (capturados da conta LangSmith do autor)._
 
