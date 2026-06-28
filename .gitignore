@@ -49,6 +49,5 @@ ENV/
 screenshots/
 results/
 .claude/*
-!.claude/rules/
 .orchestrate/
 .orchestrate/runs/
