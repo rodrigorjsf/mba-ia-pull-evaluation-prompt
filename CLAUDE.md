@@ -31,3 +31,6 @@ Postgraduate deliverable: docs are living, not write-once.
 When something fails repeatedly, when User has to re-explain, or when a workaround is found for a platform/tool limitation, add a one-line bullet here. Keep each bullet under 15 words. No explanations. Only add things that will save time in future sessions.
 
 - Agents fail silently on wrong paths. Always verify hardcoded paths.
+- Deps need Python 3.12 (no 3.14 wheels); use `uv venv --python 3.12`.
+- Orchestrate `commands.json` needs a no-op `build` (`/usr/bin/true`) or reverify fails.
+- MCP git commits need repo-local `git config user.name/email` (no HOME).
