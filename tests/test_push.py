@@ -1,6 +1,7 @@
 """
 Unit tests for push_prompts.py — all network calls are mocked.
 """
+import os
 import sys
 from pathlib import Path
 import pytest
@@ -165,11 +166,67 @@ class TestMain:
         """main() must exit with non-zero when credentials are absent."""
         with patch("push_prompts.push_prompt_to_langsmith", return_value=False):
             with pytest.raises(SystemExit) as exc_info:
-                push_prompts.main()
+                push_prompts.main(version="v2")
             assert exc_info.value.code != 0
 
     def test_main_exits_zero_on_success(self):
         """main() must exit 0 (or return 0) when push succeeds."""
         with patch("push_prompts.push_prompt_to_langsmith", return_value=True):
+            result = push_prompts.main(version="v2")
+            assert result in (0, None)
+
+
+class TestMainVersionSelection:
+    """Smoke tests for version-selection in main() — no network calls."""
+
+    def test_main_v0_calls_push_with_v0_name(self):
+        """main(version='v0') must call push_prompt_to_langsmith with a name ending in /bug_to_user_story_v0."""
+        with patch("push_prompts.push_prompt_to_langsmith", return_value=True) as mock_push, \
+             patch.dict("os.environ", {"USERNAME_LANGSMITH_HUB": HANDLE}):
+            result = push_prompts.main(version="v0")
+            assert result in (0, None)
+            mock_push.assert_called_once()
+            prompt_name = mock_push.call_args.args[0]
+            assert prompt_name.endswith("/bug_to_user_story_v0"), (
+                f"Expected name ending in /bug_to_user_story_v0, got: {prompt_name}"
+            )
+
+    def test_main_v2_calls_push_with_v2_name(self):
+        """main(version='v2') must call push_prompt_to_langsmith with a name ending in /bug_to_user_story_v2."""
+        with patch("push_prompts.push_prompt_to_langsmith", return_value=True) as mock_push, \
+             patch.dict("os.environ", {"USERNAME_LANGSMITH_HUB": HANDLE}):
+            result = push_prompts.main(version="v2")
+            assert result in (0, None)
+            mock_push.assert_called_once()
+            prompt_name = mock_push.call_args.args[0]
+            assert prompt_name.endswith("/bug_to_user_story_v2"), (
+                f"Expected name ending in /bug_to_user_story_v2, got: {prompt_name}"
+            )
+
+    def test_main_default_pushes_v2_when_no_argv(self):
+        """main() with no explicit version and clean sys.argv must default to v2."""
+        with patch("push_prompts.push_prompt_to_langsmith", return_value=True) as mock_push, \
+             patch.dict("os.environ", {"USERNAME_LANGSMITH_HUB": HANDLE}), \
+             patch.object(sys, "argv", ["push_prompts.py"]):
             result = push_prompts.main()
             assert result in (0, None)
+            prompt_name = mock_push.call_args.args[0]
+            assert prompt_name.endswith("/bug_to_user_story_v2")
+
+    def test_main_invalid_version_exits_nonzero(self):
+        """main(version='bad') must exit with non-zero code and not call hub."""
+        with patch("push_prompts.push_prompt_to_langsmith") as mock_push:
+            with pytest.raises(SystemExit) as exc_info:
+                push_prompts.main(version="bad_version")
+            assert exc_info.value.code != 0
+            mock_push.assert_not_called()
+
+    def test_main_v0_passes_v0_prompt_data_to_push(self):
+        """main(version='v0') must load and forward the v0 YAML data (version field == 'v0')."""
+        with patch("push_prompts.push_prompt_to_langsmith", return_value=True) as mock_push, \
+             patch.dict("os.environ", {"USERNAME_LANGSMITH_HUB": HANDLE}):
+            push_prompts.main(version="v0")
+            prompt_data = mock_push.call_args.args[1]
+            assert prompt_data.get("version") == "v0", (
+                f"Expected prompt version 'v0', got: {prompt_data.get('version')}"
+            )
