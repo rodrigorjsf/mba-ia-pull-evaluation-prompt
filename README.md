@@ -66,7 +66,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 # ou com venv padrão
 python3.12 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # fish: source .venv/bin/activate.fish · Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -77,7 +77,7 @@ Copie `.env.example` para `.env` e preencha:
 ```bash
 LANGSMITH_API_KEY=...            # sua chave do LangSmith
 USERNAME_LANGSMITH_HUB=...       # seu handle no Hub (namespace do push)
-LANGSMITH_PROJECT=MBA-evaluation-prompt
+LANGSMITH_PROJECT=mba-project-evaluation-prompt
 
 # Provider de LLM (escolha um)
 LLM_PROVIDER=google              # ou "openai"
@@ -88,20 +88,24 @@ EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
 
 ### 3. Ordem de execução
 
+> Use o **python do venv** (`.venv/bin/python`) — não existe comando `python` puro sem
+> ativar o venv. Como alternativa, ative-o antes (fish: `source .venv/bin/activate.fish`) e
+> use `python` direto.
+
 ```bash
 # 1. Pull do prompt inicial (v1) do Hub -> prompts/bug_to_user_story_v1.yml
-python src/pull_prompts.py
+.venv/bin/python src/pull_prompts.py
 
 # 2. Refatorar: editar prompts/bug_to_user_story_v2.yml (já otimizado neste repo)
 
 # 3. Push público do v2 -> {USERNAME_LANGSMITH_HUB}/bug_to_user_story_v2
-python src/push_prompts.py
+.venv/bin/python src/push_prompts.py
 
 # 4. Avaliação end-to-end (puxa o v2 do Hub, roda os 15 exemplos, imprime as métricas)
 #    No free tier do Gemini, execute via o wrapper com throttling — MESMA lógica do
 #    evaluate.py, só com pacing de RPM (ver "Nota sobre limites de taxa" abaixo):
-python evaluate_throttled.py
-#    (com cota suficiente, o original imutável roda igual: python src/evaluate.py)
+.venv/bin/python evaluate_throttled.py
+#    (com cota suficiente, o original imutável roda igual: .venv/bin/python src/evaluate.py)
 ```
 
 ### 4. Testes de validação (sem credenciais)
@@ -129,11 +133,11 @@ O `src/evaluate.py` dispara ~60 chamadas ao LLM por execução (15 exemplos × 1
 
 ```bash
 # roda o evaluate.py ORIGINAL com pacing de ~14 RPM (zero 429, 15/15 limpos)
-python evaluate_throttled.py
+.venv/bin/python evaluate_throttled.py
 ```
 
 Alternativa: com cota maior (tier pago ou modelo com RPM mais alto), o original imutável roda
-igual — `python src/evaluate.py`.
+igual — `.venv/bin/python src/evaluate.py`.
 
 ---
 
@@ -248,9 +252,9 @@ Métricas Base:
 
 ### Evidências no LangSmith
 
-- **Projeto / dashboard:** <https://smith.langchain.com/projects/MBA-evaluation-prompt>
+- **Projeto / dashboard:** <https://smith.langchain.com/projects/mba-project-evaluation-prompt>
 - **Prompt v2 público:** <https://smith.langchain.com/prompts/bug_to_user_story_v2>
-- **Dataset** `MBA-evaluation-prompt-eval` com os 15 exemplos; tracing visível para todos.
+- **Dataset** `mba-project-evaluation-prompt-eval` com os 15 exemplos; tracing visível para todos.
 - _Screenshots do dashboard com as notas ≥ 0.8 e os traces de ≥ 3 exemplos: a anexar
   (capturados da conta LangSmith do autor)._
 
