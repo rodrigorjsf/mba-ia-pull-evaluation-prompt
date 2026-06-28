@@ -10,6 +10,42 @@ pública e a avalia automaticamente contra 15 cenários reais usando 5 métricas
 
 O fluxo completo é `pull (v1) → otimizar → push público (v2) → avaliar → iterar`.
 
+```mermaid
+flowchart LR
+    Hub[("LangSmith<br/>Prompt Hub")]
+    V1["📥 v1 RUIM<br/>leonanluppi/bug_to_user_story_v1"]
+    OPT["🛠️ Otimização<br/>Few-shot · Role · Structured Output"]
+    V2["📤 v2 OTIMIZADO<br/>rodrigorjsf/bug_to_user_story_v2"]
+    EVAL["⚖️ evaluate.py<br/>15 exemplos × 3 juízes LLM"]
+    GATE{"Todas as 5<br/>métricas ≥ 0.8?"}
+    DONE["✅ APROVADO<br/>média 0.8277"]
+
+    Hub e1@--> V1
+    V1 e2@--> OPT
+    OPT e3@--> V2
+    V2 e4@--> Hub
+    Hub e5@--> EVAL
+    EVAL e6@--> GATE
+    GATE -->|"não · itera"| OPT
+    GATE -->|sim| DONE
+
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+    e4@{ animate: true }
+    e5@{ animate: true }
+    e6@{ animate: true }
+
+    classDef bad  fill:#ffe1e1,stroke:#d33,color:#900
+    classDef good fill:#e1f7e1,stroke:#2a2,color:#070
+    classDef proc fill:#e7efff,stroke:#36c,color:#024
+    classDef hub  fill:#fff4d6,stroke:#e6a700,color:#6b4f00
+    class V1 bad
+    class V2,DONE good
+    class OPT,EVAL proc
+    class Hub hub
+```
+
 ---
 
 ## Como Executar
@@ -30,7 +66,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 # ou com venv padrão
 python3.12 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # fish: source .venv/bin/activate.fish · Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -41,28 +77,35 @@ Copie `.env.example` para `.env` e preencha:
 ```bash
 LANGSMITH_API_KEY=...            # sua chave do LangSmith
 USERNAME_LANGSMITH_HUB=...       # seu handle no Hub (namespace do push)
-LANGSMITH_PROJECT=MBA-evaluation-prompt
+LANGSMITH_PROJECT=mba-project-evaluation-prompt
 
 # Provider de LLM (escolha um)
 LLM_PROVIDER=google              # ou "openai"
 GOOGLE_API_KEY=...               # se google
-LLM_MODEL=gemini-2.5-flash       # modelo que responde
-EVAL_MODEL=gemini-2.5-flash      # modelo juiz (avaliação)
+LLM_MODEL=gemini-3.1-flash-lite  # modelo que responde
+EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
 ```
 
 ### 3. Ordem de execução
 
+> Use o **python do venv** (`.venv/bin/python`) — não existe comando `python` puro sem
+> ativar o venv. Como alternativa, ative-o antes (fish: `source .venv/bin/activate.fish`) e
+> use `python` direto.
+
 ```bash
 # 1. Pull do prompt inicial (v1) do Hub -> prompts/bug_to_user_story_v1.yml
-python src/pull_prompts.py
+.venv/bin/python src/pull_prompts.py
 
 # 2. Refatorar: editar prompts/bug_to_user_story_v2.yml (já otimizado neste repo)
 
 # 3. Push público do v2 -> {USERNAME_LANGSMITH_HUB}/bug_to_user_story_v2
-python src/push_prompts.py
+.venv/bin/python src/push_prompts.py
 
 # 4. Avaliação end-to-end (puxa o v2 do Hub, roda os 15 exemplos, imprime as métricas)
-python src/evaluate.py
+#    No free tier do Gemini, execute via o wrapper com throttling — MESMA lógica do
+#    evaluate.py, só com pacing de RPM (ver "Nota sobre limites de taxa" abaixo):
+.venv/bin/python evaluate_throttled.py
+#    (com cota suficiente, o original imutável roda igual: .venv/bin/python src/evaluate.py)
 ```
 
 ### 4. Testes de validação (sem credenciais)
@@ -71,35 +114,68 @@ python src/evaluate.py
 .venv/bin/python -m pytest -q
 ```
 
-### Nota sobre limites de taxa (rate limit)
+### Nota sobre limites de taxa (rate limit) e conformidade com o SPEC
 
 O `src/evaluate.py` dispara ~60 chamadas ao LLM por execução (15 exemplos × 1 geração +
-3 juízes). Em **cota free** do Gemini, esse burst pode estourar o limite por minuto,
-receber `429` e **descartar exemplos silenciosamente** (resposta vazia → pulada),
-corrompendo as notas. Duas saídas:
+3 juízes). Em **cota free** do Gemini, esse burst estoura o limite por minuto do
+`gemini-3.1-flash-lite`, recebe `429` e o `evaluate.py` **descarta exemplos silenciosamente**
+(resposta vazia → pulada), corrompendo as notas.
 
-- Use um modelo com cota maior, ex. `gemini-3.1-flash-lite` (15 RPM / 500 RPD) em
-  `LLM_MODEL`/`EVAL_MODEL`; **ou**
-- Limite a taxa a ~14 RPM **sem alterar os arquivos imutáveis**, via um launcher externo
-  que injeta um `InMemoryRateLimiter`:
+> **Conformidade com o SPEC.** Para respeitar o enunciado, **`src/evaluate.py` NÃO foi
+> modificado** — permanece exatamente como no boilerplate (arquivo imutável). Foi necessário
+> criar [`evaluate_throttled.py`](evaluate_throttled.py), e **foi ele o efetivamente
+> executado** para gerar as evidências, devido às políticas atuais do Gemini e à limitação de
+> rate limit do modelo usado (`gemini-3.1-flash-lite`, 15 RPM no free tier). A **lógica
+> seguida é exatamente a mesma do `evaluate.py` original**: o wrapper apenas injeta um
+> `InMemoryRateLimiter` (~14 RPM) em toda instância de `ChatGoogleGenerativeAI` (gerador +
+> juízes) e executa o `src/evaluate.py` imutável via `runpy`. Nenhuma métrica, prompt ou
+> regra de aprovação é alterada — só o ritmo das chamadas à API.
 
-```python
-# run_throttled.py — roda o evaluate.py imutável com pacing de ~14 RPM
-import runpy, sys
-import langchain_google_genai as lcg
-from langchain_core.rate_limiters import InMemoryRateLimiter
-_lim = InMemoryRateLimiter(requests_per_second=14/60, check_every_n_seconds=0.5, max_bucket_size=1)
-_orig = lcg.ChatGoogleGenerativeAI.__init__
-lcg.ChatGoogleGenerativeAI.__init__ = lambda self, **kw: _orig(self, **{**kw, "rate_limiter": kw.get("rate_limiter", _lim)})
-sys.path.insert(0, "src"); runpy.run_path("src/evaluate.py", run_name="__main__")
+```bash
+# roda o evaluate.py ORIGINAL com pacing de ~14 RPM (zero 429, 15/15 limpos)
+.venv/bin/python evaluate_throttled.py
 ```
+
+Alternativa: com cota maior (tier pago ou modelo com RPM mais alto), o original imutável roda
+igual — `.venv/bin/python src/evaluate.py`.
 
 ---
 
 ## Técnicas Aplicadas (Fase 2)
 
 O prompt otimizado (`prompts/bug_to_user_story_v2.yml`) combina **três técnicas**
-(declaradas em `techniques_applied`):
+(declaradas em `techniques_applied`). O diagrama abaixo contrasta cada defeito intencional
+do v1 com a correção correspondente no v2:
+
+```mermaid
+flowchart TB
+    subgraph V1G["❌ v1 — Prompt RUIM (ponto de partida)"]
+        direction TB
+        a1["Sem persona definida"]
+        a2["{bug_report} duplicado<br/>no system + no user"]
+        a3["Instrução vaga:<br/>'crie uma user story'"]
+        a4["Zero exemplos"]
+        a5["Sem formato de saída exigido"]
+    end
+    subgraph V2G["✅ v2 — Prompt OTIMIZADO (entregável)"]
+        direction TB
+        b1["Persona: Product Manager sênior<br/>→ Role Prompting"]
+        b2["user_prompt = só {bug_report};<br/>conhecimento todo no system"]
+        b3["6 regras explícitas<br/>+ tratamento de edge cases"]
+        b4["2 exemplos bug→story<br/>→ Few-shot Learning"]
+        b5["Formato Markdown fixo<br/>→ Structured Output"]
+    end
+    a1 -. otimiza .-> b1
+    a2 -. otimiza .-> b2
+    a3 -. otimiza .-> b3
+    a4 -. otimiza .-> b4
+    a5 -. otimiza .-> b5
+
+    classDef bad  fill:#ffe1e1,stroke:#d33,color:#900
+    classDef good fill:#e1f7e1,stroke:#2a2,color:#070
+    class a1,a2,a3,a4,a5 bad
+    class b1,b2,b3,b4,b5 good
+```
 
 ### 1. Role Prompting
 
@@ -135,7 +211,9 @@ Escreva APENAS a User Story final — sem explicações, sem raciocínio, sem te
 
 **Por quê:** os juízes de **Precision** e **Clarity** penalizam alucinação, divagação e
 verbosidade. Forçar saída focada e concisa, sem etapas intermediárias, protege essas duas
-métricas (e, por consequência, as derivadas Helpfulness e Correctness).
+métricas (e, por consequência, as derivadas Helpfulness e Correctness). O raciocínio (Chain
+of Thought) é mantido **interno** ao modelo — aplicado, mas nunca impresso — justamente para
+não poluir a saída avaliada.
 
 > O `user_prompt` é exatamente `"{bug_report}"` — a única variável de template; todo o
 > conhecimento (persona, regras, exemplos) vive no `system_prompt`.
@@ -144,48 +222,43 @@ métricas (e, por consequência, as derivadas Helpfulness e Correctness).
 
 ## Resultados Finais
 
-Avaliação real (`python src/evaluate.py`, 15/15 exemplos, modelo `gemini-3.1-flash-lite`
-com throttle de 14 RPM), puxando o v2 do Hub:
+A avaliação oficial do desafio (`src/evaluate.py`) mede **apenas o prompt otimizado v2**
+contra os 15 exemplos do dataset — é o único prompt que o SPEC pede para avaliar. O run
+abaixo é **real** (`gemini-3.1-flash-lite`, 15/15 exemplos, throttle de 14 RPM), puxando o
+v2 do Hub.
 
-```
-==================================================
-Prompt: rodrigorjsf/bug_to_user_story_v2
-==================================================
+### Avaliação real do v2 (entregável)
 
-Métricas Derivadas:
-- Helpfulness: 0.81 ✓
-- Correctness: 0.84 ✓
+#### Pull prompt inicial
 
-Métricas Base:
-- F1-Score: 0.88 ✓
-- Clarity: 0.81 ✓
-- Precision: 0.80 ✓
+`leonanluppi/bug_to_user_story_v1`:
 
-📊 MÉDIA GERAL: 0.8277
-✅ STATUS: APROVADO - Todas as métricas >= 0.8
-```
+<p align="center">
+  <img src="docs/evidence/pull_prompt_evidence.png" alt="Prompt inicial" width="600px" />
+</p>
 
-### Tabela comparativa v1 vs v2
+`rodrigorjsf/bug_to_user_story_v2`:
 
-| Métrica | v1 (baseline) | v2 (otimizado) | Limiar |
-|---|---|---|---|
-| Helpfulness | 0.45 ✗ | **0.81** ✓ | 0.80 |
-| Correctness | 0.52 ✗ | **0.84** ✓ | 0.80 |
-| F1-Score | 0.48 ✗ | **0.88** ✓ | 0.80 |
-| Clarity | 0.50 ✗ | **0.81** ✓ | 0.80 |
-| Precision | 0.46 ✗ | **0.80** ✓ | 0.80 |
-| **Média** | **~0.48** ✗ | **0.8277** ✓ | 0.80 |
+#### Push prompt otimizado
 
-> A coluna **v1** corresponde ao ponto de partida de baixa qualidade
-> (`leonanluppi/bug_to_user_story_v1`) — números ilustrativos conforme o enunciado do
-> desafio. A coluna **v2** é a medição real do prompt otimizado deste repositório.
+<p align="center">
+  <img src="docs/evidence/push_prompt_evidence.png" alt="Prompt otimizado" width="600px" />
+</p>
+
+#### Avaliação prompt otimizado
+
+<p align="center">
+  <img src="docs/evidence/evaluation_prompt_evidence.png" alt="Prompt evaluation" width="600px" />
+</p>
 
 ### Evidências no LangSmith
 
-- **Projeto / dashboard:** <https://smith.langchain.com/projects/MBA-evaluation-prompt>
-- **Prompt v2 público:** <https://smith.langchain.com/prompts/bug_to_user_story_v2>
-- **Dataset** `MBA-evaluation-prompt-eval` com os 15 exemplos; tracing visível para todos.
-- _Screenshots do dashboard com as notas ≥ 0.8: a anexar._
+- **Prompt v2 público:** <https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2>
+- **Dataset** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) com os 15 exemplos; tracing visível para todos.
+
+#### Exemplos
+- _Screenshots do dashboard com as notas ≥ 0.8 e os traces de ≥ 3 exemplos: a anexar
+  (capturados da conta LangSmith do autor)._
 
 ### Jornada de avaliação
 
@@ -207,7 +280,30 @@ prompt.
 
 ## Métricas de avaliação
 
-Os juízes (LLM-as-Judge, em `src/metrics.py`) produzem 3 métricas-base e 2 derivadas:
+Os juízes (LLM-as-Judge, em `src/metrics.py`) produzem 3 métricas-base e 2 derivadas.
+**Precision** é a métrica de maior alavancagem porque alimenta as duas derivadas:
+
+```mermaid
+flowchart LR
+    subgraph J["🧑‍⚖️ Métricas Base — juízes LLM (metrics.py)"]
+        F1["F1-Score<br/>precision/recall vs. referência"]
+        CL["Clarity<br/>clareza, concisão, sem ambiguidade"]
+        PR["Precision<br/>sem alucinação, foco, correção factual"]
+    end
+    HP["Helpfulness<br/>= (Clarity + Precision) / 2"]
+    CO["Correctness<br/>= (F1 + Precision) / 2"]
+    CL --> HP
+    PR --> HP
+    F1 --> CO
+    PR --> CO
+
+    classDef base  fill:#e7efff,stroke:#36c,color:#024
+    classDef deriv fill:#ede1ff,stroke:#73c,color:#414
+    classDef lever fill:#fff4d6,stroke:#e6a700,color:#6b4f00,stroke-width:3px
+    class F1,CL base
+    class PR lever
+    class HP,CO deriv
+```
 
 | Métrica | Como é calculada |
 |---|---|
@@ -217,7 +313,6 @@ Os juízes (LLM-as-Judge, em `src/metrics.py`) produzem 3 métricas-base e 2 der
 | **Helpfulness** | derivada: `(Clarity + Precision) / 2` |
 | **Correctness** | derivada: `(F1 + Precision) / 2` |
 
-Como **Precision** alimenta as duas derivadas, é a métrica de maior alavancagem.
 Aprovação exige **todas as 5 ≥ 0.8** (não apenas a média).
 
 ---
@@ -229,11 +324,14 @@ mba-ia-pull-evaluation-prompt/
 ├── .env.example
 ├── requirements.txt
 ├── README.md
+├── evaluate_throttled.py          # wrapper: roda o evaluate.py imutável com ~14 RPM
 ├── prompts/
 │   ├── bug_to_user_story_v1.yml   # baseline puxado do Hub
 │   └── bug_to_user_story_v2.yml   # prompt otimizado (entregável)
 ├── datasets/
 │   └── bug_to_user_story.jsonl    # 15 bugs (5 simples, 7 médios, 3 complexos)
+├── docs/
+│   └── evidence/                  # saída bruta da avaliação real do v2
 ├── src/
 │   ├── pull_prompts.py            # pull do Hub          (implementado)
 │   ├── push_prompts.py            # push público do Hub  (implementado)
