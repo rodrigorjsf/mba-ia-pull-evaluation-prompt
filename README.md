@@ -98,7 +98,10 @@ python src/pull_prompts.py
 python src/push_prompts.py
 
 # 4. Avaliação end-to-end (puxa o v2 do Hub, roda os 15 exemplos, imprime as métricas)
-python src/evaluate.py
+#    No free tier do Gemini, execute via o wrapper com throttling — MESMA lógica do
+#    evaluate.py, só com pacing de RPM (ver "Nota sobre limites de taxa" abaixo):
+python evaluate_throttled.py
+#    (com cota suficiente, o original imutável roda igual: python src/evaluate.py)
 ```
 
 ### 4. Testes de validação (sem credenciais)
@@ -107,28 +110,30 @@ python src/evaluate.py
 .venv/bin/python -m pytest -q
 ```
 
-### Nota sobre limites de taxa (rate limit)
+### Nota sobre limites de taxa (rate limit) e conformidade com o SPEC
 
 O `src/evaluate.py` dispara ~60 chamadas ao LLM por execução (15 exemplos × 1 geração +
-3 juízes). Em **cota free** do Gemini, esse burst pode estourar o limite por minuto,
-receber `429` e **descartar exemplos silenciosamente** (resposta vazia → pulada),
-corrompendo as notas. Duas saídas:
+3 juízes). Em **cota free** do Gemini, esse burst estoura o limite por minuto do
+`gemini-3.1-flash-lite`, recebe `429` e o `evaluate.py` **descarta exemplos silenciosamente**
+(resposta vazia → pulada), corrompendo as notas.
 
-- Use um modelo com cota maior, ex. `gemini-3.1-flash-lite` (15 RPM / 500 RPD) em
-  `LLM_MODEL`/`EVAL_MODEL`; **ou**
-- Limite a taxa a ~14 RPM **sem alterar os arquivos imutáveis**, via um launcher externo
-  que injeta um `InMemoryRateLimiter`:
+> **Conformidade com o SPEC.** Para respeitar o enunciado, **`src/evaluate.py` NÃO foi
+> modificado** — permanece exatamente como no boilerplate (arquivo imutável). Foi necessário
+> criar [`evaluate_throttled.py`](evaluate_throttled.py), e **foi ele o efetivamente
+> executado** para gerar as evidências, devido às políticas atuais do Gemini e à limitação de
+> rate limit do modelo usado (`gemini-3.1-flash-lite`, 15 RPM no free tier). A **lógica
+> seguida é exatamente a mesma do `evaluate.py` original**: o wrapper apenas injeta um
+> `InMemoryRateLimiter` (~14 RPM) em toda instância de `ChatGoogleGenerativeAI` (gerador +
+> juízes) e executa o `src/evaluate.py` imutável via `runpy`. Nenhuma métrica, prompt ou
+> regra de aprovação é alterada — só o ritmo das chamadas à API.
 
-```python
-# run_throttled.py — roda o evaluate.py imutável com pacing de ~14 RPM
-import runpy, sys
-import langchain_google_genai as lcg
-from langchain_core.rate_limiters import InMemoryRateLimiter
-_lim = InMemoryRateLimiter(requests_per_second=14/60, check_every_n_seconds=0.5, max_bucket_size=1)
-_orig = lcg.ChatGoogleGenerativeAI.__init__
-lcg.ChatGoogleGenerativeAI.__init__ = lambda self, **kw: _orig(self, **{**kw, "rate_limiter": kw.get("rate_limiter", _lim)})
-sys.path.insert(0, "src"); runpy.run_path("src/evaluate.py", run_name="__main__")
+```bash
+# roda o evaluate.py ORIGINAL com pacing de ~14 RPM (zero 429, 15/15 limpos)
+python evaluate_throttled.py
 ```
+
+Alternativa: com cota maior (tier pago ou modelo com RPM mais alto), o original imutável roda
+igual — `python src/evaluate.py`.
 
 ---
 
@@ -313,6 +318,7 @@ mba-ia-pull-evaluation-prompt/
 ├── .env.example
 ├── requirements.txt
 ├── README.md
+├── evaluate_throttled.py          # wrapper: roda o evaluate.py imutável com ~14 RPM
 ├── prompts/
 │   ├── bug_to_user_story_v1.yml   # baseline puxado do Hub
 │   └── bug_to_user_story_v2.yml   # prompt otimizado (entregável)
