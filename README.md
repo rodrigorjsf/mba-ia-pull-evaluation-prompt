@@ -101,11 +101,16 @@ EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
 # 3. Push público do v2 -> {USERNAME_LANGSMITH_HUB}/bug_to_user_story_v2
 .venv/bin/python src/push_prompts.py
 
-# 4. Avaliação end-to-end (puxa o v2 do Hub, roda os 15 exemplos, imprime as métricas)
+# 4. Avaliação end-to-end oficial (pass terminal do SPEC — puxo o v2 do Hub, 15 exemplos)
 #    No free tier do Gemini, execute via o wrapper com throttling — MESMA lógica do
 #    evaluate.py, só com pacing de RPM (ver "Nota sobre limites de taxa" abaixo):
 .venv/bin/python evaluate_throttled.py
 #    (com cota suficiente, o original imutável roda igual: .venv/bin/python src/evaluate.py)
+
+# 5. (Opcional) Experimento nativo LangSmith — Comparison View v0 vs. v2
+#    Registra um Experiment LangSmith para v0 (baseline REPROVADO) e v2 (APROVADO)
+#    e gera o link público de Comparison View para comparar métricas dos dois runs:
+.venv/bin/python run_experiment.py
 ```
 
 ### 4. Testes de validação (sem credenciais)
@@ -222,12 +227,36 @@ não poluir a saída avaliada.
 
 ## Resultados Finais
 
-A avaliação oficial do desafio (`src/evaluate.py`) mede **apenas o prompt otimizado v2**
-contra os 15 exemplos do dataset — é o único prompt que o SPEC pede para avaliar. O run
-abaixo é **real** (`gemini-3.1-flash-lite`, 15/15 exemplos, throttle de 14 RPM), puxando o
-v2 do Hub.
+### Tabela comparativa v0 × v1 × v2
 
-### Avaliação real do v2 (entregável)
+> **v0** e **v2** são runs reais (via `run_experiment.py`). **v1** é ilustrativo do SPEC —
+> não é um run real e não segue as fórmulas derivadas (ver
+> [ADR-0004](docs/adr/0004-v0-failing-baseline-v1-illustrative.md)).
+> Threshold de aprovação: todas as 5 métricas ≥ 0.8.
+
+| Métrica | **v0** (real — REPROVADO) | **v1** (ilustrativo — SPEC) | **v2** (real — APROVADO ≥ 0.8) |
+|---|---|---|---|
+| f1_score | ⟨EVIDENCE: v0 f1_score⟩ | 0.48 | ⟨EVIDENCE: v2 f1_score⟩ |
+| clarity | ⟨EVIDENCE: v0 clarity⟩ | 0.50 | ⟨EVIDENCE: v2 clarity⟩ |
+| precision | ⟨EVIDENCE: v0 precision⟩ | 0.46 | ⟨EVIDENCE: v2 precision⟩ |
+| helpfulness | ⟨EVIDENCE: v0 helpfulness⟩ | 0.45 | ⟨EVIDENCE: v2 helpfulness⟩ |
+| correctness | ⟨EVIDENCE: v0 correctness⟩ | 0.52 | ⟨EVIDENCE: v2 correctness⟩ |
+| **Status** | ❌ REPROVADO | — ilustrativo | ✅ APROVADO |
+
+> **Nota v1:** valores do enunciado do SPEC reproduzidos literalmente para fins ilustrativos
+> (ilustrativo — valores do SPEC, não é run real; não seguem as fórmulas derivadas).
+> O v1 não foi re-executado — ver [ADR-0004](docs/adr/0004-v0-failing-baseline-v1-illustrative.md).
+
+O **Comparison View público (v0 vs. v2)** gerado pelo `run_experiment.py`:
+⟨EVIDENCE: comparison view url⟩
+
+---
+
+A **avaliação oficial do SPEC** (`evaluate_throttled.py` → `src/evaluate.py` imutável) mede
+**apenas o prompt otimizado v2** — é o único prompt que o SPEC exige avaliar. O run abaixo
+é **real** (`gemini-3.1-flash-lite`, 15/15 exemplos, throttle de 14 RPM), puxando o v2 do Hub.
+
+### Avaliação real do v2 (entregável — pass terminal do SPEC)
 
 #### Pull prompt inicial
 
@@ -255,10 +284,13 @@ v2 do Hub.
 
 - **Prompt v2 público:** <https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2>
 - **Dataset** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) com os 15 exemplos; tracing visível para todos.
+- **Comparison View (v0 vs. v2):** ⟨EVIDENCE: comparison view url⟩
 
-#### Exemplos
-- _Screenshots do dashboard com as notas ≥ 0.8 e os traces de ≥ 3 exemplos: a anexar
-  (capturados da conta LangSmith do autor)._
+#### Exemplos — Comparison View (v0 vs. v2)
+
+![Scores ≥ 0.8 no painel LangSmith — Comparison View v0 vs. v2](⟨EVIDENCE: screenshot scores⟩)
+
+![Rastreamento de ≥ 3 exemplos no LangSmith](⟨EVIDENCE: screenshot traces⟩)
 
 ### Jornada de avaliação
 
