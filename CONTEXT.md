@@ -38,8 +38,13 @@ The account's public username on the Prompt Hub (`USERNAME_LANGSMITH_HUB`), form
 the prompt path `<handle>/bug_to_user_story_v2`. Created once in the LangSmith UI.
 _Avoid_: account name, org id.
 
-**v1 / v2**:
-`v1` is the intentionally low-quality starting prompt (`leonanluppi/bug_to_user_story_v1`).
+**v0 / v1 / v2**:
+`v0` is a prompt this project **deliberately under-optimizes** (no persona, no few-shot, no
+format rules) to make it genuinely fail evaluation — the *real* failing baseline, published
+under the user's Handle as `<handle>/bug_to_user_story_v0` (see ADR-0004).
+`v1` is the original low-quality starting prompt (`leonanluppi/bug_to_user_story_v1`); in the
+README comparative table its numbers are the SPEC's **illustrative** values, **not a real run**
+(a real run passes under the free judge — ADR-0004).
 `v2` is the optimized prompt this project authors and publishes under the user's own Handle.
 
 ## Evaluation
@@ -55,3 +60,13 @@ Consequence: **Precision is the linchpin** — it weighs into both Derived Metri
 
 **Approval**:
 The pass condition: *all five* metrics ≥ 0.8 individually (not just the average).
+
+**Experiment**:
+A LangSmith evaluation run over the dataset that attaches per-example feedback scores,
+visible in the Experiments tab. Produced by the additive `run_experiment.py` (via
+`langsmith.evaluation.evaluate()`), **not** by the immutable `evaluate.py`. See ADR-0003.
+_Avoid_: test run.
+
+**Comparison View**:
+The LangSmith UI that places two Experiments side by side per metric — the native form of
+the SPEC's "tabela comparativa". The published comparison is `v0` vs `v2`.

@@ -34,4 +34,3 @@ When something fails repeatedly, when User has to re-explain, or when a workarou
 - Deps need Python 3.12 (no 3.14 wheels); use `uv venv --python 3.12`.
 - Orchestrate `commands.json` needs a no-op `build` (`/usr/bin/true`) or reverify fails.
 - MCP git commits need repo-local `git config user.name/email` (no HOME).
-- `evaluate.py` scores only v2; SPEC doesn't require evaluating v1.
