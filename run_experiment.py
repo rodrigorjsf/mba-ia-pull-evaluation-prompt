@@ -27,7 +27,11 @@ forma de publicação (Experiment nativo + feedback por exemplo) muda.
 
 Uso
 ---
-    python run_experiment.py
+    python run_experiment.py [v0|v2]   # padrão: v2
+
+`v2` é o prompt otimizado (APROVA, ≥0.8); `v0` é a baseline ruim (REPROVA). O
+mesmo runner cria os dois Experiments sobre o mesmo dataset, habilitando a
+Comparison View (v0 vs v2) no dashboard.
 
 Toda I/O de rede acontece DENTRO de `main()`/helpers — nunca no import. Isso
 permite importar o módulo (e testar o adaptador de métricas) sem rede.
@@ -164,12 +168,15 @@ def inventory_langsmith(client: Client) -> None:
         print(f"   ⚠️  Não foi possível listar projetos: {exc}")
 
 
-def pull_v2_prompt(username: str) -> Any:
-    """Puxa `<handle>/bug_to_user_story_v2` do LangSmith Hub (fonte única)."""
-    prompt_name = f"{username}/bug_to_user_story_v2"
+ALLOWED_VERSIONS = ("v0", "v2")
+
+
+def pull_prompt(username: str, version: str = "v2") -> Any:
+    """Puxa `<handle>/bug_to_user_story_<version>` do Hub (fonte única)."""
+    prompt_name = f"{username}/bug_to_user_story_{version}"
     print(f"   Puxando prompt do Hub: {prompt_name}")
     prompt = hub.pull(prompt_name)
-    print("   ✓ Prompt v2 carregado")
+    print(f"   ✓ Prompt {version} carregado")
     return prompt
 
 
@@ -186,9 +193,9 @@ def share_results(client: Client, dataset_name: str) -> None:
         print(f"\n⚠️  Não foi possível compartilhar publicamente: {exc}")
 
 
-def create_experiment() -> int:
-    """Cria o Experiment v2 pontuado no dashboard do LangSmith."""
-    print_section_header("EXPERIMENT v2 NATIVO NO LANGSMITH")
+def create_experiment(version: str = "v2") -> int:
+    """Cria o Experiment `<version>` pontuado no dashboard do LangSmith."""
+    print_section_header(f"EXPERIMENT {version} NATIVO NO LANGSMITH")
 
     provider = os.getenv("LLM_PROVIDER", "openai")
     required_vars = ["LANGSMITH_API_KEY", "LLM_PROVIDER", "USERNAME_LANGSMITH_HUB"]
@@ -209,9 +216,9 @@ def create_experiment() -> int:
     # 1. Inventário read-only.
     inventory_langsmith(client)
 
-    # 2. Prompt v2 do Hub (fonte única de verdade).
+    # 2. Prompt do Hub (fonte única de verdade).
     username = os.getenv("USERNAME_LANGSMITH_HUB", "")
-    prompt_template = pull_v2_prompt(username)
+    prompt_template = pull_prompt(username, version)
 
     # 3. Dataset existente: <project>-eval (15 exemplos).
     project_name = os.getenv("LANGSMITH_PROJECT", "prompt-optimization-challenge-resolved")
@@ -227,10 +234,10 @@ def create_experiment() -> int:
         target,
         data=dataset_name,
         evaluators=[combined_evaluator],
-        experiment_prefix="bug_to_user_story_v2",
+        experiment_prefix=f"bug_to_user_story_{version}",
         max_concurrency=MAX_CONCURRENCY,
         metadata={
-            "prompt": f"{username}/bug_to_user_story_v2",
+            "prompt": f"{username}/bug_to_user_story_{version}",
             "provider": provider,
             "llm_model": os.getenv("LLM_MODEL", ""),
             "eval_model": os.getenv("EVAL_MODEL", ""),
@@ -249,11 +256,17 @@ def create_experiment() -> int:
     return 0
 
 
-def main() -> int:
+def main(version: str = None) -> int:
     from dotenv import load_dotenv
 
     load_dotenv()
-    return create_experiment()
+    if version is None:
+        argv = [a for a in sys.argv[1:] if not a.startswith("-")]
+        version = argv[0] if argv else "v2"
+    if version not in ALLOWED_VERSIONS:
+        print(f"❌ Versão inválida: {version!r}. Use uma de {ALLOWED_VERSIONS}.")
+        return 2
+    return create_experiment(version)
 
 
 if __name__ == "__main__":

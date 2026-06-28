@@ -149,3 +149,38 @@ def test_combined_evaluator_reads_score_defensively():
     scores = {r["key"]: r["score"] for r in result["results"]}
     assert scores["f1_score"] == pytest.approx(0.0)
     assert scores["correctness"] == pytest.approx((0.0 + 0.4) / 2)
+
+
+# --- version selection (the additive v0/v2 runner switch) -------------------
+
+def test_pull_prompt_builds_versioned_hub_name():
+    """pull_prompt forms `<handle>/bug_to_user_story_<version>` and never the
+    network at import — the hub call is patched."""
+    with patch("run_experiment.hub.pull", return_value=MagicMock()) as mock_pull:
+        run_experiment.pull_prompt("rodrigorjsf", "v0")
+    mock_pull.assert_called_once_with("rodrigorjsf/bug_to_user_story_v0")
+
+
+def test_main_routes_version_to_create_experiment():
+    """main(version=...) forwards the selected version to create_experiment."""
+    for version in ("v0", "v2"):
+        with patch("run_experiment.create_experiment", return_value=0) as mock_ce:
+            rc = run_experiment.main(version=version)
+        assert rc == 0
+        mock_ce.assert_called_once_with(version)
+
+
+def test_main_defaults_to_v2_when_no_arg(monkeypatch):
+    """With no CLI arg, main() defaults to v2 (backward-compatible)."""
+    monkeypatch.setattr(run_experiment.sys, "argv", ["run_experiment.py"])
+    with patch("run_experiment.create_experiment", return_value=0) as mock_ce:
+        run_experiment.main()
+    mock_ce.assert_called_once_with("v2")
+
+
+def test_main_rejects_invalid_version():
+    """An unknown version is rejected before any experiment is created."""
+    with patch("run_experiment.create_experiment") as mock_ce:
+        rc = run_experiment.main(version="v9")
+    assert rc == 2
+    mock_ce.assert_not_called()
