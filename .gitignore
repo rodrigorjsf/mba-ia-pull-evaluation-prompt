@@ -22,6 +22,7 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
 
@@ -47,4 +48,6 @@ ENV/
 # Project specific
 screenshots/
 results/
-.claude/
+.claude/*
+.orchestrate/
+.orchestrate/runs/
