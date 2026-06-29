@@ -12,9 +12,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from utils import validate_prompt_structure
 
 def load_prompts(file_path: str):
-    """Carrega prompts do arquivo YAML."""
+    """Carrega prompts do arquivo YAML.
+
+    Suporta tanto o formato flat (campos no topo) quanto o aninhado no estilo v1
+    (todos os campos sob uma única chave-raiz, ex.: ``bug_to_user_story_v2:``).
+    """
     with open(file_path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    if isinstance(data, dict) and len(data) == 1:
+        inner = next(iter(data.values()))
+        if isinstance(inner, dict) and "system_prompt" in inner:
+            return inner
+    return data
 
 PROMPT_PATH = str(Path(__file__).parent.parent / "prompts" / "bug_to_user_story_v2.yml")
 

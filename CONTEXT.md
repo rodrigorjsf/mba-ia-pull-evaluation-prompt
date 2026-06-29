@@ -39,8 +39,13 @@ the prompt path `<handle>/bug_to_user_story_v2`. Created once in the LangSmith U
 _Avoid_: account name, org id.
 
 **v1 / v2**:
-`v1` is the intentionally low-quality starting prompt (`leonanluppi/bug_to_user_story_v1`).
-`v2` is the optimized prompt this project authors and publishes under the user's own Handle.
+`v1` is the original low-quality starting prompt this project **pulls from the Hub**
+(`leonanluppi/bug_to_user_story_v1`) — the entry point of the flow, shown as evidence but never
+re-evaluated.
+`v2` is the optimized prompt this project authors and publishes under the user's own Handle
+(`<handle>/bug_to_user_story_v2`). It is the **only** prompt the challenge evaluates, and it
+passes all five metrics ≥ 0.8 (see ADR-0005). There is no `v0` — the failing-baseline idea was
+abandoned (ADR-0004, superseded).
 
 ## Evaluation
 
@@ -55,3 +60,15 @@ Consequence: **Precision is the linchpin** — it weighs into both Derived Metri
 
 **Approval**:
 The pass condition: *all five* metrics ≥ 0.8 individually (not just the average).
+
+**Experiment**:
+A LangSmith evaluation run over the dataset that attaches per-example feedback scores,
+visible in the Experiments tab. Produced by the additive `run_experiment.py` (via
+`langsmith.evaluation.evaluate()`), **not** by the immutable `evaluate.py`. See ADR-0003.
+_Avoid_: test run.
+
+**v1 → v2 narrative**:
+The deliverable's story is `v1` (the initial prompt pulled from the Hub, low quality) → `v2`
+(the optimized prompt this project authors) → evaluate `v2` / iterate. Only `v2` is formally
+evaluated, so there is **no** side-by-side LangSmith Comparison View; the evidence is the single
+scored `v2` Experiment plus traces of ≥ 3 examples.

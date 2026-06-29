@@ -1,5 +1,9 @@
 # Evaluation evidence comes from traces + terminal, not a native LangSmith Experiment
 
+> **Status: Superseded by [ADR-0003](./0003-native-experiments-for-dashboard-scores.md).**
+> The course deliverable does require dashboard-visible scores + a comparison, so we now add
+> the additive `evaluate()` runner this ADR deferred. Kept for the history of the decision.
+
 The deliverable asks for "avaliações no dashboard com notas ≥ 0.8", but `evaluate.py`
 is immutable and only prints scores to the terminal, creates/loads the eval dataset,
 and emits traces via `LANGSMITH_TRACING=true`. It never calls `langsmith.evaluation.evaluate()`

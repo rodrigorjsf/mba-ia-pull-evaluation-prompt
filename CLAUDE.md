@@ -34,4 +34,7 @@ When something fails repeatedly, when User has to re-explain, or when a workarou
 - Deps need Python 3.12 (no 3.14 wheels); use `uv venv --python 3.12`.
 - Orchestrate `commands.json` needs a no-op `build` (`/usr/bin/true`) or reverify fails.
 - MCP git commits need repo-local `git config user.name/email` (no HOME).
-- `evaluate.py` scores only v2; SPEC doesn't require evaluating v1.
+- Eval must run sequentially (conc=1); gpt-4o judge 30k TPM, else 429 zeros metrics.
+- Prompt validator flags "TODO" inside "TODOS"; use lowercase "todos" in system_prompt.
+- Local probe reads YAML directly (skips validation); only push validates structure.
+- chrome-devtools MCP tools register only at CC startup; Bash-launched Chrome dies (exit 144).

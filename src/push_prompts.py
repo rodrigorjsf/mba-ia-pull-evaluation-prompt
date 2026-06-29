@@ -25,6 +25,23 @@ V2_PROMPT_FILE = PROMPTS_DIR / "bug_to_user_story_v2.yml"
 REQUIRED_ENV_VARS = ["LANGSMITH_API_KEY", "USERNAME_LANGSMITH_HUB"]
 
 
+def unwrap_prompt_data(prompt_data: dict) -> dict:
+    """Suporta YAML flat OU aninhado no estilo v1.
+
+    O prompt v1, vindo do pull, aninha todos os campos sob uma única chave-raiz
+    (ex.: ``bug_to_user_story_v1:``). Um v2 escrito no mesmo formato envolve os
+    campos reais um nível abaixo. Esta função desembrulha essa raiz única para
+    que o restante do pipeline (validação imutável em ``utils.validate_prompt_structure``
+    e push) enxergue ``system_prompt``/``description``/etc. no topo. Arquivos já
+    flat são devolvidos sem alteração.
+    """
+    if isinstance(prompt_data, dict) and len(prompt_data) == 1:
+        inner = next(iter(prompt_data.values()))
+        if isinstance(inner, dict) and "system_prompt" in inner:
+            return inner
+    return prompt_data
+
+
 def validate_prompt(prompt_data: dict) -> tuple[bool, list]:
     """
     Valida estrutura básica de um prompt (versão simplificada).
@@ -84,6 +101,10 @@ def push_prompt_to_langsmith(prompt_name: str, prompt_data: dict) -> bool:
         print(f"✅ Prompt publicado com sucesso: {url}")
         return True
     except Exception as e:
+        msg = str(e).lower()
+        if "nothing to commit" in msg or "has not changed" in msg:
+            print("ℹ️  Prompt já está publicado sem alterações (nada a commitar) — OK.")
+            return True
         print(f"❌ Erro ao fazer push para o LangSmith Hub: {e}")
         return False
 
@@ -99,6 +120,8 @@ def main():
     if prompt_data is None:
         print(f"❌ Não foi possível carregar o prompt de {V2_PROMPT_FILE}")
         sys.exit(1)
+
+    prompt_data = unwrap_prompt_data(prompt_data)
 
     success = push_prompt_to_langsmith(prompt_name, prompt_data)
     if not success:
