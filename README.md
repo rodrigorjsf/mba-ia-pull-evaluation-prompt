@@ -287,11 +287,38 @@ bugs complexos) está em [`docs/evidence/v2-optimization-log.md`](docs/evidence/
 ### Evidências no LangSmith
 
 - **Prompt v2 público:** <https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2>
-- **Dataset** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) com os 15 exemplos; tracing visível para todos.
+- **Dataset + experimentos (link público, sem login):** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) — os 15 exemplos e os experimentos `v2`, com tracing visível para todos.
 
-#### Exemplos
-- _Screenshots do dashboard com as notas ≥ 0.8 e os traces de ≥ 3 exemplos: a anexar
-  (capturados da conta LangSmith do autor)._
+#### Dashboard — 5 métricas ≥ 0.8 (Experiment `bug_to_user_story_v2-765f0d5e`)
+
+O gráfico **Feedback** mostra as cinco notas (clarity, correctness, f1_score, helpfulness,
+precision) todas em/acima da linha de 0.8; metadados confirmam os modelos do SPEC
+(`gen_model=gpt-4o-mini`, `eval_model=gpt-4o`, `version=v2`).
+
+<p align="center">
+  <img src="docs/evidence/experiment_v2_dashboard.png" alt="Dashboard do experimento v2 com as 5 métricas ≥ 0.8" width="720px" />
+</p>
+
+#### Notas por exemplo (15 runs)
+
+<p align="center">
+  <img src="docs/evidence/experiment_v2_examples.png" alt="Grade dos 15 exemplos com input, output e notas por métrica" width="720px" />
+</p>
+
+#### Traces de 3 exemplos
+
+Cada run é rastreado (`Target → ChatPromptTemplate → gpt-4o-mini`), com input do bug, output
+da user story gerada e a referência:
+
+<p align="center">
+  <img src="docs/evidence/experiment_v2_trace_1.png" alt="Trace do exemplo 1 — botão de carrinho" width="720px" />
+</p>
+<p align="center">
+  <img src="docs/evidence/experiment_v2_trace_2.png" alt="Trace do exemplo 2 — contagem no dashboard" width="720px" />
+</p>
+<p align="center">
+  <img src="docs/evidence/experiment_v2_trace_3.png" alt="Trace do exemplo 3 — validação de email" width="720px" />
+</p>
 
 ### Jornada de avaliação
 
