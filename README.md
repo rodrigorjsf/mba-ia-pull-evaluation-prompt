@@ -323,6 +323,12 @@ precision) todas em/acima da linha de 0.8; metadados confirmam os modelos do SPE
   <img src="docs/evidence/experiment_v2_dashboard.png" alt="Dashboard do experimento v2 com as 5 métricas ≥ 0.8" width="720px" />
 </p>
 
+#### Comparativo entre execuções
+
+<p align="center">
+  <img src="docs/evidence/experiment_v2_dashboard_comparative.png" alt="Dashboard do experimento v2 com as 5 métricas das avaliações executadas" width="720px" />
+</p>
+
 #### Notas por exemplo (15 runs)
 
 <p align="center">
