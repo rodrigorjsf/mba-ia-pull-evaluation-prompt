@@ -311,7 +311,7 @@ Prompt v2 publicado no Hub como **público**, com as tags das técnicas aplicada
 ### Evidências no LangSmith
 
 - **Prompt v2 público:** <https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2>
-- **Dataset + experimentos (link público, sem login):** [mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) — os 15 exemplos e os experimentos `v2`, com tracing visível para todos.
+- **Dataset + experimentos (link público, sem login):** [[DATASET-URL] mba-project-evaluation-prompt-eval](https://smith.langchain.com/public/25221bb9-e549-43b0-9430-88edd1b9a4b6/d) — os 15 exemplos e os experimentos `v2`, com tracing visível para todos.
 
 #### Dashboard — 5 métricas ≥ 0.8 (Experiment `bug_to_user_story_v2-765f0d5e`)
 
