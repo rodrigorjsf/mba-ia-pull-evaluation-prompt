@@ -128,6 +128,12 @@ EVAL_DATASET=mba-project-evaluation-prompt-eval .venv/bin/python run_experiment.
 .venv/bin/python -m pytest -q
 ```
 
+#### Testes obrigatórios
+
+```bash
+.venv/bin/pytest tests/test_prompts.py
+```
+
 ### Nota sobre limites de taxa (rate limit) e conformidade com o SPEC
 
 **OpenAI (oficial).** O juiz `gpt-4o` tem limite de 30.000 tokens/min. **Execute a avaliação
