@@ -86,14 +86,14 @@ declared ready/immutable by the SPEC. The plan works within their contract.
 Planning output of a second `grill-with-docs` session: the SPEC's "dashboard mostrando as
 avaliações" was only partially met — the v2 run printed to the terminal (no scored Experiment
 in the dashboard). This slice closes that gap by publishing a native, scored `v2` Experiment.
-The deliverable evaluates **only `v2`**; the `v0` failing-baseline idea was abandoned (ADR-0005).
+The deliverable evaluates **only `v2`**; the `v0` failing-baseline idea was abandoned (ADR-0004).
 
 ### Locked decisions
 
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D9 | **Native Experiment** via an additive `run_experiment.py` calling `langsmith.evaluation.evaluate()` (supersedes D3) | Only way to put scored feedback **in the dashboard** Experiments tab. See ADR-0003. |
-| D10 | **Evaluate only `v2`** (the optimized prompt); no manufactured `v0` baseline | `v2` passes all five ≥ 0.8 under the rigorous judge; a synthetic failing prompt adds noise. See ADR-0005. |
+| D10 | **Evaluate only `v2`** (the optimized prompt); no manufactured `v0` baseline | `v2` passes all five ≥ 0.8 under the rigorous judge; a synthetic failing prompt adds noise. See ADR-0004. |
 | D11 | **README shows `v2` only**: the scored Experiment + the `v1 → v2` narrative (v1 = the initial pulled prompt) | The challenge evaluates only the optimized prompt; v1 is shown as the starting point, not re-run. |
 | D12 | **Judge = SPEC-locked `gpt-4o`** (generation `gpt-4o-mini`), run **sequentially** | The rigorous judge is what `v2` passes under; sequential avoids the 30k-TPM 429 that zeroes metrics. |
 | D13 | **Hub = one prompt**: `<handle>/bug_to_user_story_v2` (optimized), public | Single source of truth pulled by the runner; no v0 artifact to maintain. |
