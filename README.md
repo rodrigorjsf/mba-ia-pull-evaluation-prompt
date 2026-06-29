@@ -5,9 +5,9 @@ refatora com técnicas de Prompt Engineering, republica a versão otimizada de f
 pública e a avalia automaticamente contra 15 cenários reais usando 5 métricas via
 **LLM-as-Judge**.
 
-> **Status:** ✅ **APROVADO** — todas as 5 métricas ≥ 0.8 (média geral **0.8501**), sob os
-> modelos do SPEC: geração `gpt-4o-mini`, juiz `gpt-4o`.
-> Prompt otimizado: [`rodrigorjsf/bug_to_user_story_v2`](https://smith.langchain.com/prompts/bug_to_user_story_v2).
+> **Status:** ✅ **APROVADO** — todas as 5 métricas ≥ 0.8 (média geral **0.8394**, Experiment
+> `bug_to_user_story_v2-765f0d5e`), sob os modelos do SPEC: geração `gpt-4o-mini`, juiz `gpt-4o`.
+> Prompt otimizado: [`rodrigorjsf/bug_to_user_story_v2`](https://smith.langchain.com/hub/rodrigorjsf/bug_to_user_story_v2).
 
 O fluxo completo é `pull (v1) → otimizar → push público (v2) → avaliar → iterar`.
 
@@ -19,7 +19,7 @@ flowchart LR
     V2["📤 v2 OTIMIZADO<br/>rodrigorjsf/bug_to_user_story_v2"]
     EVAL["⚖️ evaluate.py<br/>15 exemplos × 3 juízes LLM"]
     GATE{"Todas as 5<br/>métricas ≥ 0.8?"}
-    DONE["✅ APROVADO<br/>média 0.8501"]
+    DONE["✅ APROVADO<br/>média 0.8394"]
 
     Hub e1@--> V1
     V1 e2@--> OPT
@@ -73,18 +73,25 @@ pip install -r requirements.txt
 
 ### 2. Credenciais (`.env`)
 
-Copie `.env.example` para `.env` e preencha:
+Copie `.env.example` para `.env` e preencha. A configuração **oficial do entregável** usa os
+modelos do SPEC (OpenAI); o Gemini free fica como alternativa gratuita:
 
 ```bash
 LANGSMITH_API_KEY=...            # sua chave do LangSmith
 USERNAME_LANGSMITH_HUB=...       # seu handle no Hub (namespace do push)
-LANGSMITH_PROJECT=mba-project-evaluation-prompt
+LANGSMITH_PROJECT=mba-projects
 
-# Provider de LLM (escolha um)
-LLM_PROVIDER=google              # ou "openai"
-GOOGLE_API_KEY=...               # se google
-LLM_MODEL=gemini-3.1-flash-lite  # modelo que responde
-EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
+# Provider OFICIAL — modelos do SPEC
+LLM_PROVIDER=openai
+OPENAI_API_KEY=...
+LLM_MODEL=gpt-4o-mini            # modelo que responde
+EVAL_MODEL=gpt-4o                # modelo juiz (avaliação)
+
+# Alternativa gratuita (Google Gemini) — ver "Nota sobre limites de taxa"
+# LLM_PROVIDER=google
+# GOOGLE_API_KEY=...
+# LLM_MODEL=gemini-2.5-flash
+# EVAL_MODEL=gemini-2.5-flash
 ```
 
 ### 3. Ordem de execução
@@ -102,12 +109,18 @@ EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
 # 3. Push público do v2 -> {USERNAME_LANGSMITH_HUB}/bug_to_user_story_v2
 .venv/bin/python src/push_prompts.py
 
-# 4. Avaliação end-to-end (puxa o v2 do Hub, roda os 15 exemplos, imprime as métricas)
-#    No free tier do Gemini, execute via o wrapper com throttling — MESMA lógica do
-#    evaluate.py, só com pacing de RPM (ver "Nota sobre limites de taxa" abaixo):
-.venv/bin/python evaluate_throttled.py
-#    (com cota suficiente, o original imutável roda igual: .venv/bin/python src/evaluate.py)
+# 4. Avaliação (stdout): puxa o v2 do Hub, roda os 15 exemplos, imprime as 5 métricas
+.venv/bin/python src/evaluate.py
+
+# 5. Experiment PONTUADO no dashboard do LangSmith (gera as evidências deste README)
+EVAL_DATASET=mba-project-evaluation-prompt-eval .venv/bin/python run_experiment.py v2
 ```
+
+> `src/evaluate.py` (imutável) imprime as métricas no terminal, rodando em laço sequencial;
+> `run_experiment.py` cria o **Experiment pontuado** com as 5 métricas no dashboard do LangSmith —
+> é ele que produz o dashboard, a grade de exemplos e os traces da seção
+> [Resultados Finais](#resultados-finais). Ambos respeitam o `EVAL_DATASET`
+> `mba-project-evaluation-prompt-eval`.
 
 ### 4. Testes de validação (sem credenciais)
 
@@ -117,28 +130,26 @@ EVAL_MODEL=gemini-3.1-flash-lite # modelo juiz (avaliação)
 
 ### Nota sobre limites de taxa (rate limit) e conformidade com o SPEC
 
-O `src/evaluate.py` dispara ~60 chamadas ao LLM por execução (15 exemplos × 1 geração +
-3 juízes). Em **cota free** do Gemini, esse burst estoura o limite por minuto do
-`gemini-3.1-flash-lite`, recebe `429` e o `evaluate.py` **descarta exemplos silenciosamente**
-(resposta vazia → pulada), corrompendo as notas.
+**OpenAI (oficial).** O juiz `gpt-4o` tem limite de 30.000 tokens/min. **Execute a avaliação
+SEQUENCIALMENTE** — `src/evaluate.py` já roda em laço e `run_experiment.py` usa
+`max_concurrency=1`. Com concorrência ≥ 2 o burst estoura `429`, e as métricas capturam a exceção
+retornando `0.0`, corrompendo Clarity/Precision. Em sequencial não há `429`.
+
+**Gemini free (alternativa).** No free tier, o `src/evaluate.py` dispara ~60 chamadas por execução
+(15 exemplos × 1 geração + 3 juízes), estoura o limite por minuto, recebe `429` e **descarta
+exemplos silenciosamente** (resposta vazia → pulada), corrompendo as notas.
 
 > **Conformidade com o SPEC.** Para respeitar o enunciado, **`src/evaluate.py` NÃO foi
-> modificado** — permanece exatamente como no boilerplate (arquivo imutável). Foi necessário
-> criar [`evaluate_throttled.py`](evaluate_throttled.py), e **foi ele o efetivamente
-> executado** para gerar as evidências, devido às políticas atuais do Gemini e à limitação de
-> rate limit do modelo usado (`gemini-3.1-flash-lite`, 15 RPM no free tier). A **lógica
-> seguida é exatamente a mesma do `evaluate.py` original**: o wrapper apenas injeta um
-> `InMemoryRateLimiter` (~14 RPM) em toda instância de `ChatGoogleGenerativeAI` (gerador +
-> juízes) e executa o `src/evaluate.py` imutável via `runpy`. Nenhuma métrica, prompt ou
-> regra de aprovação é alterada — só o ritmo das chamadas à API.
+> modificado** — permanece exatamente como no boilerplate (arquivo imutável). Para o caminho
+> Gemini foi criado [`evaluate_throttled.py`](evaluate_throttled.py), que injeta um
+> `InMemoryRateLimiter` em toda instância de `ChatGoogleGenerativeAI` (gerador + juízes) e executa
+> o `src/evaluate.py` imutável via `runpy` — **mesma lógica**, só com pacing de RPM. Nenhuma
+> métrica, prompt ou regra de aprovação é alterada.
 
 ```bash
-# roda o evaluate.py ORIGINAL com pacing de ~14 RPM (zero 429, 15/15 limpos)
+# caminho Gemini free: roda o evaluate.py ORIGINAL com pacing de RPM (zero 429, 15/15 limpos)
 .venv/bin/python evaluate_throttled.py
 ```
-
-Alternativa: com cota maior (tier pago ou modelo com RPM mais alto), o original imutável roda
-igual — `.venv/bin/python src/evaluate.py`.
 
 ---
 
@@ -260,28 +271,43 @@ do SPEC (geração `gpt-4o-mini`, juiz `gpt-4o`), 15/15 exemplos, puxando o v2 d
 A jornada completa de otimização (iterações do prompt, análise por métrica e o teto de recall dos
 bugs complexos) está em [`docs/evidence/v2-optimization-log.md`](docs/evidence/v2-optimization-log.md).
 
-### Avaliação real do v2 (entregável)
+### Comparativo v1 (ruim) × v2 (otimizado)
 
-#### Pull prompt inicial
+| Aspecto | v1 — `leonanluppi/bug_to_user_story_v1` (ruim) | v2 — `rodrigorjsf/bug_to_user_story_v2` (otimizado) |
+|---|---|---|
+| Persona | nenhuma | Product Manager sênior (**Role Prompting**) |
+| Exemplos | zero | 3 exemplos `bug → User Story`, um por tier (**Few-shot**) |
+| Raciocínio | nenhum | **Chain of Thought** interno (aplicado, nunca impresso) |
+| Formato de saída | não exigido | Markdown fixo `Como um… eu quero…` + `Critérios` (**Structured Output**) |
+| Edge cases | ignorados | 6 regras explícitas + casos especiais |
+| `{bug_report}` | duplicado em system + user | só no `user_prompt`; conhecimento todo no `system_prompt` |
+| **Resultado** | ❌ **REPROVADO** (defeitos estruturais acima) | ✅ **APROVADO** — 5/5 métricas ≥ 0.8, média **0.8394** |
 
-`leonanluppi/bug_to_user_story_v1`:
+> O v1 **não foi pontuado** sob o juiz oficial `gpt-4o`: o entregável avalia apenas o v2
+> ([ADR-0005](docs/adr/0005-evaluate-only-v2.md)). O contraste acima é estrutural (defeito → correção)
+> — o que de fato distingue as duas versões; os números reais medidos do v2 estão na tabela oficial
+> acima.
+
+### Pull e Push (CLI)
+
+**Pull** do prompt inicial `leonanluppi/bug_to_user_story_v1` → `prompts/bug_to_user_story_v1.yml`
+(SPEC §1):
 
 <p align="center">
-  <img src="docs/evidence/pull_prompt_evidence.png" alt="Prompt inicial" width="600px" />
+  <img src="docs/evidence/pull_prompt_evidence.png" alt="Pull do prompt v1" width="600px" />
 </p>
 
-`rodrigorjsf/bug_to_user_story_v2`:
-
-#### Push prompt otimizado
+**Push** público do `rodrigorjsf/bug_to_user_story_v2` (SPEC §3):
 
 <p align="center">
-  <img src="docs/evidence/push_prompt_evidence.png" alt="Prompt otimizado" width="600px" />
+  <img src="docs/evidence/push_prompt_evidence.png" alt="Push do prompt v2" width="600px" />
 </p>
 
-#### Avaliação prompt otimizado
+Prompt v2 publicado no Hub como **público**, com as tags das técnicas aplicadas
+(`few-shot`, `chain-of-thought`, `role-prompting`):
 
 <p align="center">
-  <img src="docs/evidence/evaluation_prompt_evidence.png" alt="Prompt evaluation" width="600px" />
+  <img src="docs/evidence/push_prompt_public_hub.png" alt="Prompt v2 público no LangSmith Hub" width="720px" />
 </p>
 
 ### Evidências no LangSmith
@@ -388,14 +414,15 @@ mba-ia-pull-evaluation-prompt/
 ├── .env.example
 ├── requirements.txt
 ├── README.md
-├── evaluate_throttled.py          # wrapper: roda o evaluate.py imutável com ~14 RPM
+├── run_experiment.py              # cria o Experiment PONTUADO no LangSmith (v2)
+├── evaluate_throttled.py          # wrapper: roda o evaluate.py imutável com pacing de RPM (Gemini free)
 ├── prompts/
 │   ├── bug_to_user_story_v1.yml   # baseline puxado do Hub
 │   └── bug_to_user_story_v2.yml   # prompt otimizado (entregável)
 ├── datasets/
 │   └── bug_to_user_story.jsonl    # 15 bugs (5 simples, 7 médios, 3 complexos)
 ├── docs/
-│   └── evidence/                  # saída bruta da avaliação real do v2
+│   └── evidence/                  # screenshots do LangSmith + log da avaliação real do v2
 ├── src/
 │   ├── pull_prompts.py            # pull do Hub          (implementado)
 │   ├── push_prompts.py            # push público do Hub  (implementado)
@@ -405,12 +432,16 @@ mba-ia-pull-evaluation-prompt/
 └── tests/
     ├── test_prompts.py            # 6 testes de validação do v2
     ├── test_pull.py               # teste do pull (Hub mockado)
-    └── test_push.py               # teste do push (Hub mockado)
+    ├── test_push.py               # teste do push (Hub mockado)
+    ├── test_run_experiment.py     # testes do runner do Experiment pontuado
+    └── test_evaluate_throttled.py # teste do wrapper de throttling
 ```
 
 > `src/evaluate.py`, `src/metrics.py`, `src/utils.py` e o dataset são **imutáveis** —
 > nunca são editados. Os entregáveis implementados são os scripts de pull/push, o prompt
-> v2 e os testes.
+> v2 e os testes; `run_experiment.py` (Experiment pontuado) e `evaluate_throttled.py` (pacing
+> para o Gemini free) são wrappers **aditivos** que não tocam os arquivos imutáveis
+> ([ADR-0003](docs/adr/0003-native-experiments-for-dashboard-scores.md)).
 
 ---
 
