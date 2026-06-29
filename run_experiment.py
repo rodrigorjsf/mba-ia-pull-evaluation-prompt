@@ -115,15 +115,18 @@ def combined_evaluator(run: Any, example: Any) -> Dict[str, Any]:
     helpfulness = (clarity + precision) / 2
     correctness = (f1 + precision) / 2
 
-    return {
-        "results": [
-            {"key": "f1_score", "score": f1},
-            {"key": "clarity", "score": clarity},
-            {"key": "precision", "score": precision},
-            {"key": "helpfulness", "score": helpfulness},
-            {"key": "correctness", "score": correctness},
-        ]
+    # O feedback do LangSmith aceita no máximo 4 casas decimais; as derivadas
+    # ((a+b)/2) podem gerar 5+ casas, então arredonda TODAS as cinco para 4 —
+    # caso contrário o ingest do feedback falha com HTTP 422 e o score some do
+    # dashboard.
+    scores = {
+        "f1_score": f1,
+        "clarity": clarity,
+        "precision": precision,
+        "helpfulness": helpfulness,
+        "correctness": correctness,
     }
+    return {"results": [{"key": k, "score": round(v, 4)} for k, v in scores.items()]}
 
 
 def make_target(prompt_template: Any, llm: Any) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
