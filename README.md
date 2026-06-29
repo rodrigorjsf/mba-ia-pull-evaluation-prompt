@@ -224,8 +224,7 @@ dele (precisão).
 
 ### 3. Structured Output Formatting
 
-Regras explícitas exigindo **apenas** a User Story final, sem raciocínio visível
-([ADR-0002](docs/adr/0002-output-is-user-story-only.md)):
+Regras explícitas exigindo **apenas** a User Story final, sem raciocínio visível:
 
 ```
 Escreva APENAS a User Story final — sem explicações, sem raciocínio, sem texto introdutório.
@@ -283,10 +282,9 @@ bugs complexos) está em [`docs/evidence/v2-optimization-log.md`](docs/evidence/
 | `{bug_report}` | duplicado em system + user | só no `user_prompt`; conhecimento todo no `system_prompt` |
 | **Resultado** | ❌ **REPROVADO** (defeitos estruturais acima) | ✅ **APROVADO** — 5/5 métricas ≥ 0.8, média **0.8394** |
 
-> O v1 **não foi pontuado** sob o juiz oficial `gpt-4o`: o entregável avalia apenas o v2
-> ([ADR-0005](docs/adr/0005-evaluate-only-v2.md)). O contraste acima é estrutural (defeito → correção)
-> — o que de fato distingue as duas versões; os números reais medidos do v2 estão na tabela oficial
-> acima.
+> O v1 **não foi pontuado** sob o juiz oficial `gpt-4o`: o entregável avalia apenas o v2. O
+> contraste acima é estrutural (defeito → correção) — o que de fato distingue as duas versões; os
+> números reais medidos do v2 estão na tabela oficial acima.
 
 ### Pull e Push (CLI)
 
@@ -440,8 +438,7 @@ mba-ia-pull-evaluation-prompt/
 > `src/evaluate.py`, `src/metrics.py`, `src/utils.py` e o dataset são **imutáveis** —
 > nunca são editados. Os entregáveis implementados são os scripts de pull/push, o prompt
 > v2 e os testes; `run_experiment.py` (Experiment pontuado) e `evaluate_throttled.py` (pacing
-> para o Gemini free) são wrappers **aditivos** que não tocam os arquivos imutáveis
-> ([ADR-0003](docs/adr/0003-native-experiments-for-dashboard-scores.md)).
+> para o Gemini free) são wrappers **aditivos** que não tocam os arquivos imutáveis.
 
 ---
 
