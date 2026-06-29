@@ -1,5 +1,11 @@
 # Failing baseline = a crafted `v0` (real run); `v1` stays illustrative
 
+> **Status: SUPERSEDED by [ADR-0005](./0005-evaluate-only-v2.md).**
+> The `v0` failing-baseline approach was abandoned. The deliverable now evaluates **only the
+> optimized `v2`** (which passes all five metrics ≥ 0.8 under the SPEC-locked `gpt-4o-mini`
+> generation / `gpt-4o` judge). The text below is kept verbatim as the historical record of the
+> decision that was reversed — no `v0` prompt, Experiment, or comparison table ships.
+
 The SPEC narrative is "a bad prompt fails, the optimized one passes", and the deliverable is
 stronger when the dashboard actually shows the evaluator **catching a bad prompt**. But a real
 evaluation of the original `v1` (`leonanluppi/bug_to_user_story_v1`) scores **0.8748 —

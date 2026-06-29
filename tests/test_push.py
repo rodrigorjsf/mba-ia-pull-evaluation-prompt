@@ -45,6 +45,37 @@ MALFORMED_PROMPT_DATA_FEW_TECHNIQUES = {
 }
 
 
+NESTED_PROMPT_DATA = {"bug_to_user_story_v2": VALID_PROMPT_DATA}
+
+
+class TestUnwrapPromptData:
+    """Tests for unwrap_prompt_data() — supports both flat and v1-style nested YAML."""
+
+    def test_nested_root_is_unwrapped(self):
+        """A single root key wrapping the real fields is unwrapped to the inner dict."""
+        result = push_prompts.unwrap_prompt_data(NESTED_PROMPT_DATA)
+        assert result == VALID_PROMPT_DATA
+        assert "system_prompt" in result
+
+    def test_flat_data_is_unchanged(self):
+        """Already-flat data (top-level system_prompt) is returned unchanged."""
+        result = push_prompts.unwrap_prompt_data(VALID_PROMPT_DATA)
+        assert result == VALID_PROMPT_DATA
+
+    def test_single_key_without_system_prompt_is_not_unwrapped(self):
+        """A single-key dict whose inner value is not a prompt dict is left as-is."""
+        data = {"something": {"foo": "bar"}}
+        assert push_prompts.unwrap_prompt_data(data) == data
+
+    def test_nested_data_pushes_successfully(self):
+        """main() path: nested YAML validates and reaches hub.push."""
+        is_valid, errors = push_prompts.validate_prompt(
+            push_prompts.unwrap_prompt_data(NESTED_PROMPT_DATA)
+        )
+        assert is_valid is True
+        assert errors == []
+
+
 class TestValidatePrompt:
     """Tests for validate_prompt()."""
 
@@ -140,6 +171,20 @@ class TestPushPromptToLangsmith:
             assert result is False
             captured = capsys.readouterr()
             assert captured.out, "Expected an error message printed to stdout"
+
+    def test_unchanged_prompt_is_treated_as_success(self):
+        """A 409 'Nothing to commit' (identical content) is idempotent success, not failure."""
+        err = Exception(
+            "409 Client Error: Conflict ... "
+            '{"error":"Nothing to commit: prompt has not changed since latest commit"}'
+        )
+        with patch.object(push_prompts.hub, "push", side_effect=err), \
+             patch("push_prompts.check_env_vars", return_value=True), \
+             patch.dict("os.environ", {"USERNAME_LANGSMITH_HUB": HANDLE}):
+
+            result = push_prompts.push_prompt_to_langsmith(PUSH_NAME, VALID_PROMPT_DATA)
+
+            assert result is True
 
     def test_push_includes_metadata(self):
         """hub.push should include description and tags metadata."""

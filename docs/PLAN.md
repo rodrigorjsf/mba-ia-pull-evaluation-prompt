@@ -81,23 +81,23 @@ declared ready/immutable by the SPEC. The plan works within their contract.
 
 ---
 
-## Slice 6 — Dashboard Experiments + `v0` failing baseline
+## Slice 6 — Dashboard Experiments (scored `v2`)
 
 Planning output of a second `grill-with-docs` session: the SPEC's "dashboard mostrando as
-avaliações" + "tabela comparativa v1 vs v2" were only partially met — the v2 run printed to
-the terminal (no scored Experiment in the dashboard), and no real failing prompt was ever
-evaluated. This slice closes both gaps.
+avaliações" was only partially met — the v2 run printed to the terminal (no scored Experiment
+in the dashboard). This slice closes that gap by publishing a native, scored `v2` Experiment.
+The deliverable evaluates **only `v2`**; the `v0` failing-baseline idea was abandoned (ADR-0005).
 
 ### Locked decisions
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D9 | **Native Experiments** via an additive `run_experiment.py` calling `langsmith.evaluation.evaluate()` (supersedes D3) | Only way to put scores **in the dashboard** + get a native Comparison View. See ADR-0003. |
-| D10 | **Failing baseline = a crafted `v0`** (real run, REPROVADO); `v1` is **not** re-run | A real `v1` run scores 0.87 (passes) under the free judge. See ADR-0004. |
-| D11 | **README table = v0 × v1 × v2**: v0 real, **v1 = SPEC's illustrative numbers (labelled)**, v2 real | User decision; honours the SPEC narrative without exposing the weak-judge 0.87. |
-| D12 | **Judge stays Gemini free** (`gemini-3.1-flash-lite` + 14 RPM throttle) for every run | Zero cost; keeps v2 consistent with the existing 0.8277; reuse `install_rate_limiter`. |
-| D13 | **Hub = two prompts**: `<handle>/bug_to_user_story_v0` (bad) + `…_v2` (good), both public | No deletion of the existing public v2, no commit-order problem. |
-| D14 | **Reuse the existing eval dataset**, add 2 Experiments; **inventory read-only first**, no blind wipe | The old v2 "result" was traces only; new Experiments supersede it. Preserves the public dataset link. |
+| D9 | **Native Experiment** via an additive `run_experiment.py` calling `langsmith.evaluation.evaluate()` (supersedes D3) | Only way to put scored feedback **in the dashboard** Experiments tab. See ADR-0003. |
+| D10 | **Evaluate only `v2`** (the optimized prompt); no manufactured `v0` baseline | `v2` passes all five ≥ 0.8 under the rigorous judge; a synthetic failing prompt adds noise. See ADR-0005. |
+| D11 | **README shows `v2` only**: the scored Experiment + the `v1 → v2` narrative (v1 = the initial pulled prompt) | The challenge evaluates only the optimized prompt; v1 is shown as the starting point, not re-run. |
+| D12 | **Judge = SPEC-locked `gpt-4o`** (generation `gpt-4o-mini`), run **sequentially** | The rigorous judge is what `v2` passes under; sequential avoids the 30k-TPM 429 that zeroes metrics. |
+| D13 | **Hub = one prompt**: `<handle>/bug_to_user_story_v2` (optimized), public | Single source of truth pulled by the runner; no v0 artifact to maintain. |
+| D14 | **Reuse the existing eval dataset**, add the `v2` Experiment; **inventory read-only first**, no blind wipe | The old v2 "result" was traces only; the scored Experiment supersedes it. Preserves the public dataset link. |
 
 ### Build sequence (each code file via `/tdd`)
 
@@ -109,14 +109,14 @@ flowchart TD
     classDef loop fill:#5f1e3a,stroke:#d94a90,color:#fff
 
     S0["S0 · Read-only inventory<br/>datasets / prompts / experiments<br/>(refresh creds if 401)"]:::setup
-    S1["S1 · prompts/bug_to_user_story_v0.yml<br/>deliberately under-optimized"]:::artifact
-    S2["S2 · push v0 (public)<br/>generalize push_prompts.py via /tdd"]:::code
-    S3["S3 · run_experiment.py<br/>evaluate() + metrics.py + throttle<br/>2 Experiments (v0, v2)"]:::code
-    S4["S4 · Verify v0 REPROVA & v2 APROVA<br/>iterate v0 if it still passes"]:::loop
-    S5["S5 · README + evidence<br/>v0×v1×v2 table, comparison link, screenshots"]:::artifact
+    S1["S1 · prompts/bug_to_user_story_v2.yml<br/>author & optimize (persona, CoT, few-shot)"]:::artifact
+    S2["S2 · push v2 (public)<br/>push_prompts.py via /tdd"]:::code
+    S3["S3 · run_experiment.py<br/>evaluate() + metrics.py + throttle<br/>scored v2 Experiment"]:::code
+    S4["S4 · Verify v2 APROVA (all 5 ≥ 0.8)<br/>iterate the prompt if any metric < 0.8"]:::loop
+    S5["S5 · README + evidence<br/>v2 results table, dashboard link, screenshots"]:::artifact
 
     S0 --> S1 --> S2 --> S3 --> S4 --> S5
-    S4 -.->|v0 passes| S1
+    S4 -.->|v2 below 0.8| S1
     e1@{ animate: true }
 ```
 
@@ -125,28 +125,29 @@ flowchart TD
   planning time: the dataset `mba-project-evaluation-prompt-eval` with 15 examples exists and the
   key authenticates.) Helper scripts run outside the repo must load `.env` by explicit path —
   `find_dotenv()` walks up from the *script* file, so a script in `/tmp` finds no `.env`.
-- **S1 — `prompts/bug_to_user_story_v0.yml`.** A deliberately under-optimized prompt: no persona,
-  no few-shot, no format rules — engineered to break output structure so the judge scores it
-  below 0.8. Flat schema like v2 so `push_prompts.py` can load it.
-- **S2 — Push `v0` public.** Generalize `push_prompts.py` (deliverable, via `/tdd`) to push an
-  arbitrary version → `<handle>/bug_to_user_story_v0`, `new_repo_is_public=True`.
+- **S1 — `prompts/bug_to_user_story_v2.yml`.** Author and optimize the prompt (persona, internal
+  CoT, per-tier few-shot, "cobertura ancorada") so it passes all five metrics ≥ 0.8. Nested
+  schema loaded via `push_prompts.py`'s unwrap.
+- **S2 — Push `v2` public.** `push_prompts.py` (deliverable, via `/tdd`) pushes
+  `<handle>/bug_to_user_story_v2`, `new_repo_is_public=True`; the push is idempotent.
 - **S3 — `run_experiment.py` (root, via `/tdd`).** `evaluate()` with the 3 Base Metrics from
-  `metrics.py` as evaluators (+ derived), targets `v0` and `v2` pulled from the Hub over the
-  existing dataset, reuses `install_rate_limiter`, low `max_concurrency`. One Experiment each.
-- **S4 — Verify the contrast.** Confirm `v0` REPROVA (≥ 1 metric < 0.8) and `v2` APROVA
-  (all 5 ≥ 0.8). If `v0` stubbornly passes, degrade it further and re-push.
-- **S5 — README + evidence.** Replace the `a anexar` placeholders: the **v0 × v1 × v2** table
-  (v1 column flagged as the SPEC's illustrative values), the public **Comparison View** link,
-  and screenshots of the scored Experiments + ≥ 3 traces. Keep `evaluate_throttled.py` documented
-  as the official v2 terminal pass.
+  `metrics.py` as evaluators (+ derived), targets `v2` pulled from the Hub over the existing
+  dataset, reuses `install_rate_limiter`, low `max_concurrency`. One scored `v2` Experiment.
+- **S4 — Verify `v2` passes.** Confirm `v2` APROVA (all 5 ≥ 0.8) under the SPEC-locked
+  `gpt-4o-mini` / `gpt-4o` judge, run sequentially. If any metric < 0.8, iterate the prompt
+  (S1) and re-push.
+- **S5 — README + evidence.** Replace the `a anexar` placeholders: the **`v2` results** table,
+  the public dashboard link, and screenshots of the scored Experiment + ≥ 3 traces. Keep
+  `evaluate_throttled.py` documented as the official v2 terminal pass.
 
 ### Risks
 
-- **`v0` passes the lenient judge** — the easy task + content-overlap metrics may rescue a bad
-  prompt. Mitigate by breaking the output *shape* (one-liner, no acceptance criteria) so F1
-  recall and Clarity collapse; verify before publishing (S4 loop).
-- **`evaluate()` + Gemini free 429** — the shared `InMemoryRateLimiter` must wrap the evaluator
-  LLMs too; keep `max_concurrency` low so the global pace holds.
+- **`v2` f1 sits below 0.8** — complex bugs have long references the generator can't fully
+  reproduce, capping recall. Mitigate with "cobertura ancorada" (one acceptance criterion per
+  supported behavior) and per-tier few-shot; verify each iteration sequentially (S4 loop).
+- **`evaluate()` + judge 429** — the `gpt-4o` judge has a 30k-TPM cap; concurrency ≥ 2 bursts
+  past it → 429 → `metrics.py` returns 0.0 and corrupts scores. Run **sequentially**
+  (`max_concurrency=1`); the shared `InMemoryRateLimiter` also paces the Gemini fallback.
 - **`.env` loading from helper scripts** — the credential is valid (auth confirmed at planning
   time). A planning-time 401 was a verification-script artifact: `load_dotenv()`/`find_dotenv()`
   search from the *script's* directory, so a script in `/tmp` loads no key. Real scripts run from

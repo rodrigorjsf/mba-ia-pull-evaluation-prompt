@@ -38,14 +38,14 @@ The account's public username on the Prompt Hub (`USERNAME_LANGSMITH_HUB`), form
 the prompt path `<handle>/bug_to_user_story_v2`. Created once in the LangSmith UI.
 _Avoid_: account name, org id.
 
-**v0 / v1 / v2**:
-`v0` is a prompt this project **deliberately under-optimizes** (no persona, no few-shot, no
-format rules) to make it genuinely fail evaluation — the *real* failing baseline, published
-under the user's Handle as `<handle>/bug_to_user_story_v0` (see ADR-0004).
-`v1` is the original low-quality starting prompt (`leonanluppi/bug_to_user_story_v1`); in the
-README comparative table its numbers are the SPEC's **illustrative** values, **not a real run**
-(a real run passes under the free judge — ADR-0004).
-`v2` is the optimized prompt this project authors and publishes under the user's own Handle.
+**v1 / v2**:
+`v1` is the original low-quality starting prompt this project **pulls from the Hub**
+(`leonanluppi/bug_to_user_story_v1`) — the entry point of the flow, shown as evidence but never
+re-evaluated.
+`v2` is the optimized prompt this project authors and publishes under the user's own Handle
+(`<handle>/bug_to_user_story_v2`). It is the **only** prompt the challenge evaluates, and it
+passes all five metrics ≥ 0.8 (see ADR-0005). There is no `v0` — the failing-baseline idea was
+abandoned (ADR-0004, superseded).
 
 ## Evaluation
 
@@ -67,6 +67,8 @@ visible in the Experiments tab. Produced by the additive `run_experiment.py` (vi
 `langsmith.evaluation.evaluate()`), **not** by the immutable `evaluate.py`. See ADR-0003.
 _Avoid_: test run.
 
-**Comparison View**:
-The LangSmith UI that places two Experiments side by side per metric — the native form of
-the SPEC's "tabela comparativa". The published comparison is `v0` vs `v2`.
+**v1 → v2 narrative**:
+The deliverable's story is `v1` (the initial prompt pulled from the Hub, low quality) → `v2`
+(the optimized prompt this project authors) → evaluate `v2` / iterate. Only `v2` is formally
+evaluated, so there is **no** side-by-side LangSmith Comparison View; the evidence is the single
+scored `v2` Experiment plus traces of ≥ 3 examples.
