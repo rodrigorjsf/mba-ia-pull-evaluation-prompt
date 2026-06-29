@@ -44,7 +44,7 @@ _Avoid_: account name, org id.
 re-evaluated.
 `v2` is the optimized prompt this project authors and publishes under the user's own Handle
 (`<handle>/bug_to_user_story_v2`). It is the **only** prompt the challenge evaluates, and it
-passes all five metrics ≥ 0.8 (see ADR-0005).
+passes all five metrics ≥ 0.8 (see ADR-0004).
 
 ## Evaluation
 
